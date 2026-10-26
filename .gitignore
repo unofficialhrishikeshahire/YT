@@ -1,0 +1,23 @@
+# Environment & Secrets
+.env
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+
+# Pipeline runs & media outputs
+output/
+manual_clips/*.mp4
+!manual_clips/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

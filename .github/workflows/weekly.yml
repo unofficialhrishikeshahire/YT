@@ -1,0 +1,93 @@
+name: Weekly YouTube Documentary Pipeline
+
+on:
+  schedule:
+    # Runs every Sunday at 09:00 UTC (laptop can be off)
+    - cron: '0 9 * * 0'
+  workflow_dispatch:
+    inputs:
+      mock_mode:
+        description: 'Run in mock mode (uses mock data with 0 quota)'
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Skip uploading to YouTube and sending Slack messages'
+        required: false
+        type: boolean
+        default: false
+      topic_override:
+        description: 'Explicit topic override (optional)'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: youtube-pipeline
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install System Dependencies (FFmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Weekly Pipeline Orchestrator
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.mock_mode }}" = "true" ]; then
+            ARGS="$ARGS --mock"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ inputs.topic_override }}" ]; then
+            ARGS="$ARGS --topic '${{ inputs.topic_override }}'"
+          fi
+          python -m src.orchestrator $ARGS
+
+      - name: Commit Updated Topic History
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add topics_history.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update topics history [skip ci]"
+          git push || echo "No changes to commit or push failed"
+
+      - name: Upload Output Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-documentary-output
+          path: output/
+          retention-days: 7

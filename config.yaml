@@ -1,0 +1,45 @@
+# Automated Weekly YouTube Documentary Pipeline Configuration
+
+pipeline:
+  name: "Weekly DeepDive Documentary"
+  channel_language: "en"
+  default_niche: "trending technology, science, world events, and strategic business"
+
+models:
+  # Free tier models (no hardcoded model names in code)
+  researcher_model: "gemini-2.5-flash"
+  scriptwriter_model: "gemini-2.5-flash"
+  visual_director_model: "gemini-2.5-flash"
+  publisher_model: "gemini-2.5-flash"
+
+api_limits:
+  max_retries: 5
+  base_backoff_seconds: 3.0
+  max_backoff_seconds: 60.0
+  per_call_delay_seconds: 2.0  # safe pacing for free tier 15 RPM
+
+script:
+  min_words: 1400
+  max_words: 2200
+  target_wpm: 145
+  max_regeneration_attempts: 3
+
+visuals:
+  segment_duration_target_seconds: 9
+  max_hero_clips: 10
+  video_resolution: [1920, 1080]
+  fps: 30
+
+audio:
+  voice: "en-US-ChristopherNeural"
+  music_volume: 0.12
+  speech_rate: "+0%"
+
+youtube:
+  privacy_status: "private"  # 'private', 'unlisted', or 'public'
+  contains_synthetic_media: true
+  category_id: "28"  # Science & Technology
+
+slack:
+  notify_on_success: true
+  notify_on_failure: true
